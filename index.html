@@ -1,0 +1,229 @@
+
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8"/>
+        <title>Kepler.gl embedded map</title>
+
+        <!--Uber Font-->
+        <link rel="stylesheet" href="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/uber-fonts/4.0.0/superfine.css">
+
+        <!--MapBox css-->
+        <link href="https://api.tiles.mapbox.com/mapbox-gl-js/v1.1.1/mapbox-gl.css" rel="stylesheet">
+
+        <!-— facebook open graph tags -->
+        <meta property="og:url" content="http://kepler.gl/" />
+        <meta property="og:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool" />
+        <meta property="og:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets." />
+        <meta property="og:site_name" content="kepler.gl" />
+        <meta property="og:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="800" />
+        <meta property="og:image:height" content="800" />
+
+        <!-— twitter card tags -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@uber">
+        <meta name="twitter:creator" content="@uber">
+        <meta name="twitter:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool">
+        <meta name="twitter:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets.">
+        <meta name="twitter:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+
+        <!-- Load React/Redux -->
+        <script src="https://unpkg.com/react@16.8.4/umd/react.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/react-dom@16.8.4/umd/react-dom.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/redux@3.7.2/dist/redux.js" crossorigin></script>
+        <script src="https://unpkg.com/react-redux@7.1.3/dist/react-redux.min.js" crossorigin></script>
+        <script src="https://unpkg.com/styled-components@4.1.3/dist/styled-components.min.js" crossorigin></script>
+
+        <!-- Load Kepler.gl -->
+        <script src="https://unpkg.com/kepler.gl@2.5.5/umd/keplergl.min.js" crossorigin></script>
+
+        <style type="text/css">
+          body {margin: 0; padding: 0; overflow: hidden;}
+        </style>
+
+        <!--MapBox token-->
+        <script>
+          /**
+           * Provide your MapBox Token
+           **/
+          const MAPBOX_TOKEN = 'pk.eyJ1IjoidWNmLW1hcGJveCIsImEiOiJja3RpeXpzd2oxNzNtMm9wYXQ4enY1bGJ5In0.PEZqaPuuhzPDN9RneRscqQ';
+          const WARNING_MESSAGE = 'Please Provide a Mapbox Token in order to use Kepler.gl. Edit this file and fill out MAPBOX_TOKEN with your access key';
+        </script>
+
+        <!-- GA: Delete this as you wish, However to pat ourselves on the back, we only track anonymous pageview to understand how many people are using kepler.gl. -->
+        <script>
+          (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+          (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+          ga('create', 'UA-64694404-19', {
+            'storage': 'none',
+            'clientId': localStorage.getItem('ga:clientId')
+          });
+          ga(function(tracker) {
+              localStorage.setItem('ga:clientId', tracker.get('clientId'));
+          });
+          ga('set', 'checkProtocolTask', null); // Disable file protocol checking.
+          ga('set', 'checkStorageTask', null); // Disable cookie storage checking.
+          ga('set', 'historyImportTask', null); // Disable history checking (requires reading from cookies).
+          ga('set', 'page', 'keplergl-html');
+          ga('send', 'pageview');
+        </script>
+      </head>
+      <body>
+        <!-- We will put our React component inside this div. -->
+        <div id="app">
+          <!-- Kepler.gl map will be placed here-->
+        </div>
+
+        <!-- Load our React component. -->
+        <script>
+          /* Validate Mapbox Token */
+          if ((MAPBOX_TOKEN || '') === '' || MAPBOX_TOKEN === 'PROVIDE_MAPBOX_TOKEN') {
+            alert(WARNING_MESSAGE);
+          }
+
+          /** STORE **/
+          const reducers = (function createReducers(redux, keplerGl) {
+            return redux.combineReducers({
+              // mount keplerGl reducer
+              keplerGl: keplerGl.keplerGlReducer.initialState({
+                uiState: {
+                  readOnly: true,
+                  currentModal: null
+                }
+              })
+            });
+          }(Redux, KeplerGl));
+
+          const middleWares = (function createMiddlewares(keplerGl) {
+            return keplerGl.enhanceReduxMiddleware([
+              // Add other middlewares here
+            ]);
+          }(KeplerGl));
+
+          const enhancers = (function craeteEnhancers(redux, middles) {
+            return redux.applyMiddleware(...middles);
+          }(Redux, middleWares));
+
+          const store = (function createStore(redux, enhancers) {
+            const initialState = {};
+
+            return redux.createStore(
+              reducers,
+              initialState,
+              redux.compose(enhancers)
+            );
+          }(Redux, enhancers));
+          /** END STORE **/
+
+          /** COMPONENTS **/
+          var KeplerElement = (function makeKeplerElement(react, keplerGl, mapboxToken) {
+            var LogoSvg = function LogoSvg() {
+              return react.createElement(
+                "div",
+                { className: "logo-container", style: {position: 'fixed', zIndex: 10000, padding: '4px'} },
+                  react.createElement(
+                    "svg",
+                    {
+                      className: "kepler_gl__logo",
+                      width: "107px",
+                      height: "21px",
+                      viewBox: "0 0 124 24"
+                    },
+                    react.createElement(
+                      "g",
+                      { transform: "translate(13.500000, 13.500000) rotate(45.000000) translate(-13.500000, -13.500000) translate(4.000000, 4.000000)" },
+                      react.createElement("rect", { x: "0", y: "6", transform: "matrix(2.535181e-06 1 -1 2.535181e-06 18.1107 6.0369)", fill: "#535C6C", width: "12.1", height: "12.1" }),
+                      react.createElement("rect", { x: "6", y: "0", transform: "matrix(2.535182e-06 1 -1 2.535182e-06 18.1107 -6.0369)", fill:"#1FBAD6", width: "12.1", height: "12.1" })
+                    ),
+                    react.createElement(
+                      "g",
+                      {},
+                      react.createElement("path", { fill:"#1FBAD6", d: "M39,8.7h2.2l-2.8,4.2l2.9,5.1H39l-2.4-4.2h-1.3V18h-2V5l2-0.1v7.3h1.3L39,8.7z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M42.4,13.3c0-1.5,0.4-2.7,1.1-3.5s1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C42.8,16.1,42.4,14.9,42.4,13.3z M46.6,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S47.2,10.1,46.6,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M57.1,18.2c-1,0-1.8-0.3-2.3-0.9l0,0l0,1.3v2.5h-2V8.7h1.5l0.3,0.9h0c0.3-0.3,0.7-0.6,1.2-0.7 c0.4-0.2,0.9-0.3,1.4-0.3c1.2,0,2.1,0.4,2.7,1.1c0.6,0.7,0.9,2,0.9,3.7c0,1.6-0.3,2.8-1,3.7C59.2,17.8,58.3,18.2,57.1,18.2z M56.7,10.3c-0.4,0-0.8,0.1-1.1,0.2c-0.3,0.2-0.6,0.4-0.8,0.7v4.3c0.2,0.3,0.4,0.5,0.7,0.7c0.3,0.2,0.7,0.3,1.1,0.3 c0.7,0,1.2-0.2,1.6-0.7c0.4-0.5,0.5-1.3,0.5-2.5c0-0.8-0.1-1.4-0.2-1.8s-0.4-0.7-0.7-0.9C57.6,10.4,57.2,10.3,56.7,10.3z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M63.2,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S63.2,16.8,63.2,16z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M68.2,13.3c0-1.5,0.4-2.7,1.1-3.5c0.7-0.8,1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C68.6,16.1,68.2,14.9,68.2,13.3z M72.4,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S73,10.1,72.4,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M80.2,8.7l0.1,1.7h0c0.3-0.6,0.7-1.1,1.1-1.4c0.4-0.3,1-0.5,1.6-0.5c0.4,0,0.7,0,1,0.1l-0.1,2 c-0.3-0.1-0.7-0.2-1-0.2c-0.7,0-1.3,0.3-1.7,0.8c-0.4,0.5-0.7,1.2-0.7,2.1V18h-2V8.7H80.2z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M83.8,17c0-0.8,0.4-1.2,1.2-1.2c0.8,0,1.2,0.4,1.2,1.2c0,0.8-0.4,1.1-1.2,1.1C84.2,18.2,83.8,17.8,83.8,17z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M88.5,18.7c0-0.8,0.4-1.4,1.2-1.8c-0.6-0.3-0.9-0.8-0.9-1.5c0-0.7,0.4-1.2,1.1-1.6c-0.3-0.3-0.6-0.6-0.7-0.9 c-0.2-0.4-0.2-0.8-0.2-1.3c0-1,0.3-1.8,0.9-2.3c0.6-0.5,1.6-0.8,2.8-0.8c0.5,0,1,0,1.4,0.1c0.4,0.1,0.8,0.2,1.1,0.4l2.4-0.2v1.5 h-1.5c0.2,0.4,0.2,0.8,0.2,1.3c0,1-0.3,1.7-0.9,2.2s-1.5,0.8-2.7,0.8c-0.7,0-1.2-0.1-1.6-0.2c-0.1,0.1-0.2,0.2-0.3,0.3 c-0.1,0.1-0.1,0.2-0.1,0.4c0,0.2,0.1,0.3,0.2,0.4c0.1,0.1,0.3,0.2,0.6,0.2l2.7,0.2c1,0.1,1.7,0.3,2.2,0.6c0.5,0.3,0.8,0.9,0.8,1.7 c0,0.6-0.2,1.1-0.5,1.5c-0.4,0.4-0.9,0.8-1.5,1c-0.7,0.2-1.5,0.4-2.4,0.4c-1.3,0-2.3-0.2-3-0.6C88.8,20.1,88.5,19.5,88.5,18.7z M95.1,18.4c0-0.3-0.1-0.5-0.3-0.7s-0.6-0.2-1.1-0.3l-2.7-0.3c-0.2,0.1-0.4,0.3-0.5,0.5c-0.1,0.2-0.2,0.4-0.2,0.6 c0,0.4,0.2,0.8,0.5,1c0.4,0.2,1,0.3,1.8,0.3C94.2,19.5,95.1,19.2,95.1,18.4z M94.3,11.5c0-0.6-0.1-1-0.4-1.2 c-0.3-0.2-0.7-0.3-1.3-0.3c-0.7,0-1.1,0.1-1.4,0.3c-0.3,0.2-0.4,0.6-0.4,1.2s0.1,1,0.4,1.2c0.3,0.2,0.7,0.3,1.4,0.3 c0.6,0,1.1-0.1,1.3-0.4S94.3,12,94.3,11.5z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M99.4,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S99.4,16.8,99.4,16z" })
+                    )
+                  )
+                );
+              };
+
+            return function App() {
+              var rootElm = react.useRef(null);
+              var _useState = react.useState({
+                width: window.innerWidth,
+                height: window.innerHeight
+              });
+              var windowDimension = _useState[0];
+              var setDimension = _useState[1];
+              react.useEffect(function sideEffect(){
+                function handleResize() {
+                  setDimension({width: window.innerWidth, height: window.innerHeight});
+                };
+                window.addEventListener('resize', handleResize);
+                return function() {window.removeEventListener('resize', handleResize);};
+              }, []);
+              return react.createElement(
+                'div',
+                {style: {position: 'absolute', left: 0, width: '100vw', height: '100vh'}},
+                LogoSvg(),
+                react.createElement(keplerGl.KeplerGl, {
+                  mapboxApiAccessToken: mapboxToken,
+                  id: "map",
+                  width: windowDimension.width,
+                  height: windowDimension.height
+                })
+              )
+            }
+          }(React, KeplerGl, MAPBOX_TOKEN));
+
+          const app = (function createReactReduxProvider(react, reactRedux, KeplerElement) {
+            return react.createElement(
+              reactRedux.Provider,
+              {store},
+              react.createElement(KeplerElement, null)
+            )
+          }(React, ReactRedux, KeplerElement));
+          /** END COMPONENTS **/
+
+          /** Render **/
+          (function render(react, reactDOM, app) {
+            reactDOM.render(app, document.getElementById('app'));
+          }(React, ReactDOM, app));
+        </script>
+        <!-- The next script will show how to interact directly with Kepler map store -->
+        <script>
+          /**
+           * Customize map.
+           * In the following section you can use the store object to dispatch Kepler.gl actions
+           * to add new data and customize behavior
+           */
+          (function customize(keplerGl, store) {
+            const datasets = [{"version":"v1","data":{"id":"6qn652sj","label":"MP_Egana.geojson","color":[143,47,191],"allData":[[{"type":"Feature","properties":{"id":96,"layer":95,"path":6,"vertex_index":null,"vertex_part":null,"vertex_part_ring":null,"vertex_part_index":null,"distance":null,"angle":null},"geometry":{"type":"Polygon","coordinates":[[[-70.51642,-33.52356],[-70.53598,-33.51935],[-70.54207,-33.51992],[-70.54217,-33.51992],[-70.55371,-33.51761],[-70.56527,-33.51809],[-70.57281,-33.51483],[-70.59298,-33.51701],[-70.61125,-33.5148],[-70.63037,-33.50548],[-70.63785,-33.51038],[-70.63375,-33.48917],[-70.6354,-33.4759],[-70.63308,-33.457],[-70.627,-33.45299],[-70.61365,-33.43799],[-70.61665,-33.41839],[-70.60327,-33.41507],[-70.58925,-33.4128],[-70.5673,-33.41731],[-70.56199,-33.41602],[-70.54875,-33.41796],[-70.53815,-33.42009],[-70.524,-33.43223],[-70.52043,-33.43609],[-70.52037,-33.43616],[-70.52132,-33.44102],[-70.51793,-33.46029],[-70.51733,-33.46271],[-70.516685,-33.467377],[-70.51722,-33.46806],[-70.52413,-33.48325],[-70.52192,-33.49679],[-70.52243,-33.50293],[-70.51642,-33.52356]]]}},96,95,6,null,null,null,null,null,null]],"fields":[{"name":"_geojson","type":"geojson","format":"","analyzerType":"GEOMETRY"},{"name":"id","type":"integer","format":"","analyzerType":"INT"},{"name":"layer","type":"integer","format":"","analyzerType":"INT"},{"name":"path","type":"integer","format":"","analyzerType":"INT"},{"name":"vertex_index","type":"string"},{"name":"vertex_part","type":"string"},{"name":"vertex_part_ring","type":"string"},{"name":"vertex_part_index","type":"string"},{"name":"distance","type":"string"},{"name":"angle","type":"string"}]}},{"version":"v1","data":{"id":"llg7xjvq","label":"MP_Norte.geojson","color":[0,92,255],"allData":[[{"type":"Feature","properties":{"id":155,"layer":196,"path":9,"vertex_index":null,"vertex_part":null,"vertex_part_ring":null,"vertex_part_index":null,"distance":null,"angle":null},"geometry":{"type":"Polygon","coordinates":[[[-70.64426,-33.43682],[-70.65777,-33.44239],[-70.67146,-33.44276],[-70.69088,-33.4374],[-70.70554,-33.420837],[-70.71215,-33.41687],[-70.70711,-33.40468],[-70.69807,-33.38945],[-70.70305,-33.366886],[-70.6985,-33.345917],[-70.69292,-33.33657],[-70.67261,-33.33922],[-70.67315,-33.31437],[-70.68223,-33.30593],[-70.66188,-33.30186],[-70.63871,-33.2959],[-70.6429,-33.31915],[-70.64978,-33.33334],[-70.66223,-33.34528],[-70.66385,-33.35167],[-70.66407,-33.353374],[-70.63785,-33.363274],[-70.63612,-33.36199],[-70.63435,-33.36055],[-70.63192,-33.3618],[-70.629196,-33.36307],[-70.61106,-33.38213],[-70.60916,-33.38502],[-70.60919,-33.38567],[-70.61447,-33.39897],[-70.621994,-33.405403],[-70.62731,-33.42722],[-70.64426,-33.43682]]]}},155,196,9,null,null,null,null,null,null]],"fields":[{"name":"_geojson","type":"geojson","format":"","analyzerType":"GEOMETRY"},{"name":"id","type":"integer","format":"","analyzerType":"INT"},{"name":"layer","type":"integer","format":"","analyzerType":"INT"},{"name":"path","type":"integer","format":"","analyzerType":"INT"},{"name":"vertex_index","type":"string"},{"name":"vertex_part","type":"string"},{"name":"vertex_part_ring","type":"string"},{"name":"vertex_part_index","type":"string"},{"name":"distance","type":"string"},{"name":"angle","type":"string"}]}},{"version":"v1","data":{"id":"1iax6geee","label":"MP_Vespucio.geojson","color":[192,108,132],"allData":[[{"type":"Feature","properties":{"id":94,"layer":6,"path":93,"vertex_index":null,"vertex_part":null,"vertex_part_ring":null,"vertex_part_index":null,"distance":null,"angle":null},"geometry":{"type":"Polygon","coordinates":[[[-70.58992,-33.56232],[-70.60696,-33.57077],[-70.6246,-33.567566],[-70.63635,-33.58086],[-70.64343,-33.56198],[-70.64536,-33.55937],[-70.651054,-33.546116],[-70.65391,-33.53821],[-70.65763,-33.53052],[-70.66807,-33.51972],[-70.66227,-33.50273],[-70.64636,-33.49347],[-70.65205,-33.48446],[-70.64443,-33.48599],[-70.632,-33.47217],[-70.62606,-33.47068],[-70.61062,-33.47515],[-70.59851,-33.47558],[-70.59581,-33.47992],[-70.5775,-33.48012],[-70.56537,-33.48261],[-70.54963,-33.48433],[-70.54375,-33.48593],[-70.53273,-33.49847],[-70.52173,-33.49609],[-70.52292,-33.51267],[-70.51659,-33.52335],[-70.51659,-33.52342],[-70.52348,-33.52557],[-70.53832,-33.536],[-70.54475,-33.53876],[-70.55488,-33.55002],[-70.56493,-33.55411],[-70.56767,-33.55519],[-70.57449,-33.55767],[-70.58992,-33.56232]]]}},94,6,93,null,null,null,null,null,null]],"fields":[{"name":"_geojson","type":"geojson","format":"","analyzerType":"GEOMETRY"},{"name":"id","type":"integer","format":"","analyzerType":"INT"},{"name":"layer","type":"integer","format":"","analyzerType":"INT"},{"name":"path","type":"integer","format":"","analyzerType":"INT"},{"name":"vertex_index","type":"string"},{"name":"vertex_part","type":"string"},{"name":"vertex_part_ring","type":"string"},{"name":"vertex_part_index","type":"string"},{"name":"distance","type":"string"},{"name":"angle","type":"string"}]}},{"version":"v1","data":{"id":"gsi5t393l","label":"Alto_Las_Condes.geojson","color":[248,177,149],"allData":[[{"type":"Feature","properties":{"id":141,"layer":138,"path":137,"vertex_index":null,"vertex_part":null,"vertex_part_ring":null,"vertex_part_index":null,"distance":null,"angle":null},"geometry":{"type":"Polygon","coordinates":[[[-70.53641,-33.51247],[-70.56627,-33.5086],[-70.59018,-33.50409],[-70.61568,-33.49908],[-70.61067,-33.47943],[-70.60679,-33.46575],[-70.60146,-33.39568],[-70.59791,-33.38912],[-70.57898,-33.3693],[-70.57651,-33.36731],[-70.56197,-33.36737],[-70.54907,-33.37579],[-70.5131,-33.40685],[-70.50865,-33.41487],[-70.50545,-33.42122],[-70.51157,-33.49279],[-70.53367,-33.51202],[-70.53641,-33.51247]]]}},141,138,137,null,null,null,null,null,null]],"fields":[{"name":"_geojson","type":"geojson","format":"","analyzerType":"GEOMETRY"},{"name":"id","type":"integer","format":"","analyzerType":"INT"},{"name":"layer","type":"integer","format":"","analyzerType":"INT"},{"name":"path","type":"integer","format":"","analyzerType":"INT"},{"name":"vertex_index","type":"string"},{"name":"vertex_part","type":"string"},{"name":"vertex_part_ring","type":"string"},{"name":"vertex_part_index","type":"string"},{"name":"distance","type":"string"},{"name":"angle","type":"string"}]}},{"version":"v1","data":{"id":"lpstqiii","label":"Florida_Center.geojson","color":[84,122,130],"allData":[[{"type":"Feature","properties":{"id":149,"layer":87,"path":88,"vertex_index":null,"vertex_part":null,"vertex_part_ring":null,"vertex_part_index":null,"distance":null,"angle":null},"geometry":{"type":"Polygon","coordinates":[[[-70.62677,-33.56513],[-70.63007,-33.56516],[-70.63896,-33.56279],[-70.64537,-33.55931],[-70.65199,-33.5443],[-70.65316,-33.53981],[-70.65978,-33.52067],[-70.66587,-33.50919],[-70.66226,-33.5028],[-70.65036,-33.4901],[-70.64112,-33.48907],[-70.63107,-33.48527],[-70.62251,-33.47721],[-70.61377,-33.47428],[-70.60086,-33.46995],[-70.58962,-33.472187],[-70.57855,-33.4796],[-70.56712,-33.48278],[-70.55026,-33.48888],[-70.54667,-33.48968],[-70.53168,-33.49917],[-70.5245,-33.50107],[-70.52593,-33.5099],[-70.52597,-33.51005],[-70.52829,-33.514],[-70.5409,-33.51731],[-70.55205,-33.52842],[-70.55791,-33.52849],[-70.57089,-33.53975],[-70.58746,-33.55005],[-70.59392,-33.55348],[-70.60801,-33.56037],[-70.61797,-33.56373],[-70.6229,-33.56493],[-70.62677,-33.56513]]]}},149,87,88,null,null,null,null,null,null]],"fields":[{"name":"_geojson","type":"geojson","format":"","analyzerType":"GEOMETRY"},{"name":"id","type":"integer","format":"","analyzerType":"INT"},{"name":"layer","type":"integer","format":"","analyzerType":"INT"},{"name":"path","type":"integer","format":"","analyzerType":"INT"},{"name":"vertex_index","type":"string"},{"name":"vertex_part","type":"string"},{"name":"vertex_part_ring","type":"string"},{"name":"vertex_part_index","type":"string"},{"name":"distance","type":"string"},{"name":"angle","type":"string"}]}},{"version":"v1","data":{"id":"zyex6dkbh","label":"Mall_Independencia.geojson","color":[62,172,168],"allData":[[{"type":"Feature","properties":{"id":null,"layer":null,"path":null,"vertex_index":null,"vertex_part":null,"vertex_part_ring":null,"vertex_part_index":null,"distance":null,"angle":null},"geometry":{"type":"Polygon","coordinates":[[[-70.63835,-33.48625],[-70.64972,-33.486095],[-70.65866,-33.48413],[-70.67193,-33.47257],[-70.67721,-33.46981],[-70.68846,-33.46758],[-70.70273,-33.472958],[-70.6968,-33.46107],[-70.70537,-33.45386],[-70.70436,-33.44589],[-70.70691,-33.43463],[-70.69772,-33.421337],[-70.70911,-33.416],[-70.70711,-33.40469],[-70.69848,-33.41569],[-70.69119,-33.41438],[-70.680885,-33.404125],[-70.68336,-33.39245],[-70.70042,-33.39239],[-70.69601,-33.38787],[-70.69499,-33.38746],[-70.68322,-33.38861],[-70.67296,-33.38147],[-70.65559,-33.37769],[-70.64793,-33.37101],[-70.63402,-33.36629],[-70.63165,-33.36171],[-70.62367,-33.37647],[-70.62207,-33.38776],[-70.62061,-33.39286],[-70.61981,-33.39632],[-70.62072,-33.4019],[-70.61316,-33.41507],[-70.60537,-33.4167],[-70.60488,-33.41811],[-70.60069,-33.43433],[-70.60479,-33.4486],[-70.60222,-33.45433],[-70.60618,-33.46187],[-70.61233,-33.47472],[-70.62001,-33.48491],[-70.63835,-33.48625]]]}},null,null,null,null,null,null,null,null,null],[{"type":"Feature","properties":{"id":null,"layer":null,"path":null,"vertex_index":null,"vertex_part":null,"vertex_part_ring":null,"vertex_part_index":null,"distance":null,"angle":null},"geometry":{"type":"Polygon","coordinates":[[[-70.71219,-33.47799],[-70.70273,-33.472958],[-70.69739,-33.48495],[-70.71219,-33.47799]]]}},null,null,null,null,null,null,null,null,null],[{"type":"Feature","properties":{"id":null,"layer":null,"path":null,"vertex_index":null,"vertex_part":null,"vertex_part_ring":null,"vertex_part_index":null,"distance":null,"angle":null},"geometry":{"type":"Polygon","coordinates":[[[-70.68249,-33.36297],[-70.67869,-33.35713],[-70.68212,-33.36328],[-70.68249,-33.36297]]]}},null,null,null,null,null,null,null,null,null]],"fields":[{"name":"_geojson","type":"geojson","format":"","analyzerType":"GEOMETRY"},{"name":"id","type":"string"},{"name":"layer","type":"string"},{"name":"path","type":"string"},{"name":"vertex_index","type":"string"},{"name":"vertex_part","type":"string"},{"name":"vertex_part_ring","type":"string"},{"name":"vertex_part_index","type":"string"},{"name":"distance","type":"string"},{"name":"angle","type":"string"}]}}];
+            const config = {"version":"v1","config":{"visState":{"filters":[],"layers":[{"id":"6sffj1q","type":"geojson","config":{"dataId":"6qn652sj","label":"MP_Egana","color":[255,203,153],"highlightColor":[252,242,26,255],"columns":{"geojson":"_geojson"},"isVisible":true,"visConfig":{"opacity":0.8,"strokeOpacity":0.8,"thickness":2,"strokeColor":[47,197,204],"colorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"strokeColorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"radius":10,"sizeRange":[0,10],"radiusRange":[0,50],"heightRange":[0,500],"elevationScale":5,"enableElevationZoomFactor":true,"stroked":true,"filled":false,"enable3d":false,"wireframe":false},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center"}]},"visualChannels":{"colorField":null,"colorScale":"quantile","strokeColorField":null,"strokeColorScale":"quantile","sizeField":null,"sizeScale":"linear","heightField":null,"heightScale":"linear","radiusField":null,"radiusScale":"linear"}},{"id":"ohd8kst","type":"geojson","config":{"dataId":"llg7xjvq","label":"MP_Norte","color":[130,154,227],"highlightColor":[252,242,26,255],"columns":{"geojson":"_geojson"},"isVisible":true,"visConfig":{"opacity":0.8,"strokeOpacity":0.8,"thickness":2,"strokeColor":[47,197,204],"colorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"strokeColorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"radius":10,"sizeRange":[0,10],"radiusRange":[0,50],"heightRange":[0,500],"elevationScale":5,"enableElevationZoomFactor":true,"stroked":true,"filled":false,"enable3d":false,"wireframe":false},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center"}]},"visualChannels":{"colorField":null,"colorScale":"quantile","strokeColorField":null,"strokeColorScale":"quantile","sizeField":null,"sizeScale":"linear","heightField":null,"heightScale":"linear","radiusField":null,"radiusScale":"linear"}},{"id":"eme4qtq","type":"geojson","config":{"dataId":"1iax6geee","label":"MP_Vespucio","color":[30,150,190],"highlightColor":[252,242,26,255],"columns":{"geojson":"_geojson"},"isVisible":true,"visConfig":{"opacity":0.8,"strokeOpacity":0.8,"thickness":2,"strokeColor":[71,211,217],"colorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"strokeColorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"radius":10,"sizeRange":[0,10],"radiusRange":[0,50],"heightRange":[0,500],"elevationScale":5,"enableElevationZoomFactor":true,"stroked":true,"filled":false,"enable3d":false,"wireframe":false},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center"}]},"visualChannels":{"colorField":null,"colorScale":"quantile","strokeColorField":null,"strokeColorScale":"quantile","sizeField":null,"sizeScale":"linear","heightField":null,"heightScale":"linear","radiusField":null,"radiusScale":"linear"}},{"id":"8rl31n","type":"geojson","config":{"dataId":"gsi5t393l","label":"Alto_Las_Condes","color":[179,173,158],"highlightColor":[252,242,26,255],"columns":{"geojson":"_geojson"},"isVisible":true,"visConfig":{"opacity":0.8,"strokeOpacity":0.8,"thickness":2,"strokeColor":[250,116,0],"colorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"strokeColorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"radius":10,"sizeRange":[0,10],"radiusRange":[0,50],"heightRange":[0,500],"elevationScale":5,"enableElevationZoomFactor":true,"stroked":true,"filled":false,"enable3d":false,"wireframe":false},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center"}]},"visualChannels":{"colorField":null,"colorScale":"quantile","strokeColorField":null,"strokeColorScale":"quantile","sizeField":null,"sizeScale":"linear","heightField":null,"heightScale":"linear","radiusField":null,"radiusScale":"linear"}},{"id":"rb6jxj9","type":"geojson","config":{"dataId":"lpstqiii","label":"Florida_Center","color":[221,178,124],"highlightColor":[252,242,26,255],"columns":{"geojson":"_geojson"},"isVisible":true,"visConfig":{"opacity":0.8,"strokeOpacity":0.8,"thickness":2,"strokeColor":[237,102,0],"colorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"strokeColorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"radius":10,"sizeRange":[0,10],"radiusRange":[0,50],"heightRange":[0,500],"elevationScale":5,"enableElevationZoomFactor":true,"stroked":true,"filled":false,"enable3d":false,"wireframe":false},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center"}]},"visualChannels":{"colorField":null,"colorScale":"quantile","strokeColorField":null,"strokeColorScale":"quantile","sizeField":null,"sizeScale":"linear","heightField":null,"heightScale":"linear","radiusField":null,"radiusScale":"linear"}},{"id":"2vq9dql","type":"geojson","config":{"dataId":"zyex6dkbh","label":"Mall_Independencia","color":[255,153,31],"highlightColor":[252,242,26,255],"columns":{"geojson":"_geojson"},"isVisible":true,"visConfig":{"opacity":0.8,"strokeOpacity":0.8,"thickness":2,"strokeColor":[239,93,40],"colorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"strokeColorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"radius":10,"sizeRange":[0,10],"radiusRange":[0,50],"heightRange":[0,500],"elevationScale":5,"enableElevationZoomFactor":true,"stroked":true,"filled":false,"enable3d":false,"wireframe":false},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center"}]},"visualChannels":{"colorField":null,"colorScale":"quantile","strokeColorField":null,"strokeColorScale":"quantile","sizeField":null,"sizeScale":"linear","heightField":null,"heightScale":"linear","radiusField":null,"radiusScale":"linear"}}],"interactionConfig":{"tooltip":{"fieldsToShow":{"6qn652sj":[{"name":"id","format":null},{"name":"layer","format":null},{"name":"path","format":null},{"name":"vertex_index","format":null},{"name":"vertex_part","format":null}],"llg7xjvq":[{"name":"id","format":null},{"name":"layer","format":null},{"name":"path","format":null},{"name":"vertex_index","format":null},{"name":"vertex_part","format":null}],"1iax6geee":[{"name":"id","format":null},{"name":"layer","format":null},{"name":"path","format":null},{"name":"vertex_index","format":null},{"name":"vertex_part","format":null}],"gsi5t393l":[{"name":"id","format":null},{"name":"layer","format":null},{"name":"path","format":null},{"name":"vertex_index","format":null},{"name":"vertex_part","format":null}],"lpstqiii":[{"name":"id","format":null},{"name":"layer","format":null},{"name":"path","format":null},{"name":"vertex_index","format":null},{"name":"vertex_part","format":null}],"zyex6dkbh":[{"name":"id","format":null},{"name":"layer","format":null},{"name":"path","format":null},{"name":"vertex_index","format":null},{"name":"vertex_part","format":null}]},"compareMode":false,"compareType":"absolute","enabled":true},"brush":{"size":0.5,"enabled":false},"geocoder":{"enabled":false},"coordinate":{"enabled":false}},"layerBlending":"normal","splitMaps":[],"animationConfig":{"currentTime":null,"speed":1}},"mapState":{"bearing":0,"dragRotate":false,"latitude":-33.416043554622156,"longitude":-70.5432048652821,"pitch":0,"zoom":10.427835735175545,"isSplit":false},"mapStyle":{"styleType":"dark","topLayerGroups":{},"visibleLayerGroups":{"label":true,"road":true,"border":false,"building":true,"water":true,"land":true,"3d building":false},"threeDBuildingColor":[9.665468314072013,17.18305478057247,31.1442867897876],"mapStyles":{}}}};
+
+            const loadedData = keplerGl.KeplerGlSchema.load(
+              datasets,
+              config
+            );
+
+            store.dispatch(keplerGl.addDataToMap({
+              datasets: loadedData.datasets,
+              config: loadedData.config,
+              options: {
+                centerMap: false
+              }
+            }));
+          }(KeplerGl, store))
+        </script>
+      </body>
+    </html>
+  
